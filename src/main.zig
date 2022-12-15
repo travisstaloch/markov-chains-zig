@@ -110,7 +110,7 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
 
         pub const GenOptions = struct {
             // maximum number of bytes to generate not including the start block
-            maxlen: usize,
+            maxlen: ?usize,
             // optinal starting block. if provided, must have len <= to byte_length
             start_block: ?[]const u8 = null,
         };
@@ -129,7 +129,7 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
             _ = try writer.write(&start_block);
             var int = @bitCast(Iter.Int, start_block);
             var i: usize = 0;
-            while (i < options.maxlen) : (i += 1) {
+            while (i < options.maxlen orelse std.math.maxInt(usize)) : (i += 1) {
                 const block = Iter.intToBlock(int);
                 const follows = self.table.get(block) orelse blk: {
                     // TODO recovery idea - do a substring search of self.table.entries for this block
@@ -139,9 +139,10 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
                         if (mem.endsWith(u8, &block2, trimmed))
                             break :blk self.table.values()[j];
                     }
-                    std.debug.print("current block {s} {c}\n", .{ block, block });
-                    @panic("TODO: recover somehow");
-                    // break;
+                    // std.debug.print("current block {s} {c}\n", .{ block, block });
+                    // @panic("TODO: recover somehow");
+                    // TODO - detect eof
+                    break;
                 };
 
                 // pick a random item
@@ -174,9 +175,14 @@ pub fn main() !void {
     _ = argit.next();
 
     var start_block: ?[]const u8 = null;
+    var maxlen: ?usize = null;
     while (argit.next()) |arg| {
         if (mem.eql(u8, "--start-block", arg)) {
             start_block = argit.next();
+            continue;
+        }
+        if (mem.eql(u8, "--maxlen", arg)) {
+            maxlen = try std.fmt.parseInt(usize, argit.next().?, 10);
             continue;
         }
         const f = try std.fs.cwd().openFile(arg, .{});
@@ -191,6 +197,6 @@ pub fn main() !void {
     model.prep();
     try model.gen(
         std.io.getStdOut().writer(),
-        .{ .maxlen = 200, .start_block = start_block },
+        .{ .maxlen = maxlen, .start_block = start_block },
     );
 }
