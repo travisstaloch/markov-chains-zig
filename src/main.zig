@@ -175,7 +175,7 @@ pub fn main() !void {
     model.prep();
     try model.gen(
         std.io.getStdOut().writer(),
-        .{ .maxlen = 800, .start_block = "main" },
+        .{ .maxlen = 800, .start_block = "pub fn m" },
         // .{ .maxlen = 800 },
     );
 }
