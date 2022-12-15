@@ -95,7 +95,10 @@ pub fn Model(comptime byte_len: comptime_int) type {
                 if (!gop.found_existing) gop.value_ptr.* = .{};
                 gop.value_ptr.count += 1;
                 for (gop.value_ptr.map.items) |*it2| {
-                    if (it2.char == it.next) it2.count += 1;
+                    if (it2.char == it.next) {
+                        it2.count += 1;
+                        break;
+                    }
                 } else try gop.value_ptr.map.append(self.allocator, .{ .char = it.next, .count = 1 });
             }
         }
