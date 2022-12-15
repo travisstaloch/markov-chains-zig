@@ -8,9 +8,9 @@ $ zig build run -- $(ls ../zig/test/behavior/*.zig)
 ```
 
 ```console
-$ zig build run -- $(find ../zig/test/behavior/ -name "*.zig")
+$ zig build run -- --start-block main $(find ../zig/test/behavior/ -name "*.zig")
 ```
 
 ## TODO
-* [ ] fix gen repititive spaces
-* [ ] fix gen recover when current block not found
+* [x] fix gen repititive spaces
+* [x] fix gen recover when current block not found

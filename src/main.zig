@@ -59,12 +59,12 @@ pub const Follows = struct {
             try writer.print("{c}-{}", .{ item.char, item.count });
         }
     };
-    pub fn lessThan(_: void, a: Item, b: Item) bool {
+    pub fn lessThanByCount(_: void, a: Item, b: Item) bool {
         return b.count < a.count;
     }
 };
 
-pub fn Model(comptime byte_len: comptime_int) type {
+pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
     return struct {
         table: Table = .{},
         allocator: mem.Allocator,
@@ -105,7 +105,7 @@ pub fn Model(comptime byte_len: comptime_int) type {
         pub fn prep(self: *Self) void {
             // sort each follow map by frequency descending so that more frequent come first
             for (self.table.values()) |follows|
-                std.sort.sort(Follows.Item, follows.map.items, {}, Follows.lessThan);
+                std.sort.sort(Follows.Item, follows.map.items, {}, Follows.lessThanByCount);
         }
 
         pub const GenOptions = struct {
@@ -148,10 +148,10 @@ pub fn Model(comptime byte_len: comptime_int) type {
                 var r = self.rand.intRangeAtMost(usize, 0, follows.count);
                 const first_follow = follows.map.items[0];
                 var c = first_follow.char;
+                if (debug) std.debug.print("follows {any} r {}\n", .{ follows.map.items, r });
                 r -|= first_follow.count;
-                // std.debug.print("follows {any} r {}\n", .{ follows.map.items, r });
                 for (follows.map.items[1..]) |mit| {
-                    if (r == 0) break c;
+                    if (r == 0) break;
                     r -|= mit.count;
                     c = mit.char;
                 }
@@ -167,12 +167,18 @@ pub fn Model(comptime byte_len: comptime_int) type {
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const allr = arena.allocator();
-    const args = try std.process.argsAlloc(allr);
+    var argit = try std.process.ArgIterator.initWithAllocator(allr);
     var prng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.milliTimestamp()));
-    const M = Model(8);
+    const M = Model(8, false);
     var model = M.init(allr, prng.random());
+    _ = argit.next();
 
-    for (args[1..]) |arg| {
+    var start_block: ?[]const u8 = null;
+    while (argit.next()) |arg| {
+        if (mem.eql(u8, "--start-block", arg)) {
+            start_block = argit.next();
+            continue;
+        }
         const f = try std.fs.cwd().openFile(arg, .{});
         defer f.close();
         var br = std.io.bufferedReader(f.reader());
@@ -185,7 +191,6 @@ pub fn main() !void {
     model.prep();
     try model.gen(
         std.io.getStdOut().writer(),
-        .{ .maxlen = 800, .start_block = "pub fn m" },
-        // .{ .maxlen = 800 },
+        .{ .maxlen = 200, .start_block = start_block },
     );
 }
