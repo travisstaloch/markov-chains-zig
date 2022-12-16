@@ -123,7 +123,12 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
             writer: anytype,
             options: GenOptions,
         ) !void {
-            const start_block = if (options.start_block) |start_block| Iter.strToBlock(start_block) else blk: {
+            const start_block = if (options.start_block) |start_block|
+                Iter.strToBlock(if (start_block.len > byte_len)
+                    start_block[start_block.len - byte_len ..]
+                else
+                    start_block)
+            else blk: {
                 const id = self.rand.intRangeLessThan(usize, 0, self.table.count());
                 break :blk self.table.keys()[id];
             };
@@ -193,16 +198,6 @@ pub fn main() !void {
         const input = try reader.readAllAlloc(allr, std.math.maxInt(u32));
         defer allr.free(input);
         try model.feed(input);
-    }
-
-    if (start_block) |sb| {
-        if (sb.len > build_options.block_len) {
-            std.debug.print(
-                "error: --start-block cli parameter '{s}' with length {} must be <= -Dblock-len {}\n",
-                .{ sb, sb.len, build_options.block_len },
-            );
-            return error.Args;
-        }
     }
 
     model.prep();

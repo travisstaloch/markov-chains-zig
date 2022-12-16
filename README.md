@@ -10,10 +10,10 @@ $ zig build run -Dblock-len=8 -- --start-block "pub fn" --maxlen 1000 infile1 in
    character.  defaults to 8.
 * --start-block : initial seed to start generation. this string should be
    present somewhere in input. generated text will start with this string.
-   length must be <= -Dblock-len
+   if not provided, a random start-block is chosen.  if provided string is
+   longer than -Dblock-len, only it's last block-len characters will be used.
 * --maxlen : how many characters to generate. does not include length of
-   --start-block
-
+   --start-block. generation will stop after this many characters.
 
 ### usage examples
 ```console
