@@ -21,4 +21,15 @@ pub fn build(b: *std.build.Builder) void {
         run_cmd.addArgs(args);
     }
     run_step.dependOn(&run_cmd.step);
+
+    const block_len = b.option(
+        u8,
+        "block-len",
+        "how many bytes to consider when predicting the next character.  " ++
+            "defaults to 8.  " ++
+            "note: this may affect performance.",
+    ) orelse 8;
+    const options = b.addOptions();
+    options.addOption(u8, "block_len", block_len);
+    exe.addOptions("build_options", options);
 }

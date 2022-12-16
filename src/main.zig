@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const mem = std.mem;
 const testing = std.testing;
 
@@ -170,7 +171,7 @@ pub fn main() !void {
     const allr = arena.allocator();
     var argit = try std.process.ArgIterator.initWithAllocator(allr);
     var prng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.milliTimestamp()));
-    const M = Model(8, false);
+    const M = Model(build_options.block_len, false);
     var model = M.init(allr, prng.random());
     _ = argit.next();
 
@@ -192,6 +193,16 @@ pub fn main() !void {
         const input = try reader.readAllAlloc(allr, std.math.maxInt(u32));
         defer allr.free(input);
         try model.feed(input);
+    }
+
+    if (start_block) |sb| {
+        if (sb.len > build_options.block_len) {
+            std.debug.print(
+                "error: --start-block cli parameter '{s}' with length {} must be <= -Dblock-len {}\n",
+                .{ sb, sb.len, build_options.block_len },
+            );
+            return error.Args;
+        }
     }
 
     model.prep();
