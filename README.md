@@ -24,7 +24,9 @@ $ zig build run -- --start-block "test \"" --maxlen 1000 $(ls ../zig/test/behavi
 $ zig build run -- --start-block "pub fn" --maxlen 1000 $(find ../zig/test/behavior/ -name "*.zig")
 ```
 
-## TODO
-* [x] gen - fix repititive spaces
+## TODOs
+* [x] gen - fix repetitive spaces
 * [x] gen - recover when current block not found
 * [x] add a block-len build param
+* [x] add usage text
+* [x] gen - write possibly skipped portion of start-block

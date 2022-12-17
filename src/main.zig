@@ -123,12 +123,15 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
             writer: anytype,
             options: GenOptions,
         ) !void {
-            const start_block = if (options.start_block) |start_block|
-                Iter.strToBlock(if (start_block.len > byte_len)
-                    start_block[start_block.len - byte_len ..]
-                else
-                    start_block)
-            else blk: {
+            const start_block = if (options.start_block) |start_block| blk: {
+                if (start_block.len > byte_len) {
+                    const diff = start_block.len - byte_len;
+                    // write out the skipped portion of part start_block so that
+                    // output is the same as if it weren't skipped
+                    _ = try writer.write(start_block[0..diff]);
+                    break :blk Iter.strToBlock(start_block[diff..]);
+                } else break :blk Iter.strToBlock(start_block);
+            } else blk: {
                 const id = self.rand.intRangeLessThan(usize, 0, self.table.count());
                 break :blk self.table.keys()[id];
             };
@@ -138,15 +141,15 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
             while (i < options.maxlen orelse std.math.maxInt(usize)) : (i += 1) {
                 const block = Iter.intToBlock(int);
                 const follows = self.table.get(block) orelse blk: {
-                    // TODO recovery idea - do a substring search of self.table.entries for this block
+                    // recovery - do a substring search of self.table.entries for this block
                     // with leading/trailing zeroes trimmed
+                    // FIXME: optimize this somehow. linear scan might be very expensive
                     const trimmed = std.mem.trim(u8, &block, &.{0});
                     for (self.table.keys()) |block2, j| {
                         if (mem.endsWith(u8, &block2, trimmed))
                             break :blk self.table.values()[j];
                     }
-                    // std.debug.print("current block {s} {c}\n", .{ block, block });
-                    // @panic("TODO: recover somehow");
+                    if (debug) std.debug.print("revovery failure. current block {s} {c}\n", .{ block, block });
                     // TODO - detect eof
                     break;
                 };
@@ -171,6 +174,25 @@ pub fn Model(comptime byte_len: comptime_int, comptime debug: bool) type {
     };
 }
 
+fn usage() void {
+    const text =
+        \\ usage: zig build run -Dblock-len=<block_len> -- --start-block "<start_block>" --maxlen <max_len> <input files...>
+        \\
+        \\ -Dblock-len : how many bytes to consider when predicting the next
+        \\   character.  defaults to 8.
+        \\ --start-block : optional. initial seed to start generation. this string 
+        \\   should be present somewhere in input. generated text will start with this 
+        \\   string.  if not provided, a random start-block is chosen.  if provided 
+        \\   string is longer than -Dblock-len, only it's last block-len characters will 
+        \\   be used.
+        \\ --maxlen : optional. how many characters to generate. does not include
+        \\   length of --start-block. generation will stop after this many characters.
+        \\   if missing, generation continues until it reaches an unrecoverable state.
+        \\
+    ;
+    std.debug.print("{s}\n", .{text});
+}
+
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const allr = arena.allocator();
@@ -191,7 +213,11 @@ pub fn main() !void {
             maxlen = try std.fmt.parseInt(usize, argit.next().?, 10);
             continue;
         }
-        const f = try std.fs.cwd().openFile(arg, .{});
+        const f = std.fs.cwd().openFile(arg, .{}) catch |e| {
+            std.debug.print("error: couldn't open file '{s}'\n", .{arg});
+            usage();
+            return e;
+        };
         defer f.close();
         var br = std.io.bufferedReader(f.reader());
         const reader = br.reader();
