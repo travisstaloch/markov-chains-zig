@@ -232,3 +232,14 @@ pub fn main() !void {
         .{ .maxlen = maxlen, .start_block = start_block },
     );
 }
+
+test "basic leak check" {
+    var prng = std.rand.DefaultPrng.init(@bitCast(u64, std.time.milliTimestamp()));
+    const M = Model(8, false);
+    const allr = std.testing.allocator;
+    var model = M.init(allr, prng.random());
+    defer model.deinit(allr);
+    try model.feed(@embedFile("main.zig"));
+    model.prep();
+    try model.gen(std.io.null_writer, .{ .maxlen = 1000 });
+}
